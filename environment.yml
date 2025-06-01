@@ -1,0 +1,16 @@
+name: 3DGStream
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - cudatoolkit=11.8
+  - plyfile
+  - python=3.8
+  - pip
+  - tqdm
+  - pip:
+    - submodules/diff-gaussian-rasterization
+    - submodules/simple-knn
+    - opencv-python
+    - joblib
