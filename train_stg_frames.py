@@ -388,7 +388,6 @@ def train_one_frame(lp,op,pp,args, frame_num, output_path):
     print("Optimizing " + args.output_path)
     res_dict={}
     if(args.opt_type=='3DGStream'):
-        #s1_ress, s2_ress, pre_time, s1_time, s2_time = training_one_frame(lp.extract(args), op.extract(args), pp.extract(args), args.load_iteration, args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, tb_writer, frame_num, output_path)
         s1_ress, s2_ress, s3_ress, pre_time, s1_time, s2_time, s3_time = training_one_frame(lp.extract(args), op.extract(args), pp.extract(args), args.load_iteration, args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, frame_num, output_path)
 
         # All done
@@ -416,8 +415,6 @@ def train_one_frame(lp,op,pp,args, frame_num, output_path):
             for idx, s3_res in enumerate(s3_ress):
                 if frame_num % 30 == 0:
                     save_tensor_img(s3_res['last_test_image'],os.path.join(args.output_path,f'f{frame_num}_rendering3'))
-                    save_tensor_img(s3_res['last_of_image'],os.path.join(args.output_path,f'f{frame_num}_optical_flow'))
-                    save_tensor_img(s3_res['last_pixel_image'],os.path.join(args.output_path,f'f{frame_num}_pixel'))
                 res_dict[f'stage3/psnr']=s3_res['last_test_psnr']
                 res_dict[f'stage3/points_num']=s3_res['last_points_num']
             res_dict[f'stage3/time']=s3_time

@@ -40,9 +40,6 @@ def training_one_frame(dataset, opt, pipe, load_iteration, testing_iterations, s
     tb_writer = prepare_output_and_logger(dataset)
     gaussians = GaussianModel(dataset.sh_degree,opt.rotate_sh)
     scene = Scene(dataset, gaussians, load_iteration=load_iteration, shuffle=False)
-
-    # add densification of 3DGS
-    #gaussians.training_setup(opt)
     
     gaussians.training_one_frame_setup(opt, frame_num, output_path) # generate NTC instance and initialize MLP
     if checkpoint:
@@ -56,9 +53,6 @@ def training_one_frame(dataset, opt, pipe, load_iteration, testing_iterations, s
     iter_end = torch.cuda.Event(enable_timing = True)
     viewpoint_stack = None
     ema_loss_for_log = 0.0
-    
-    # # chnage iteration 150 to 250
-    # opt.iterations = 250
     
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
     first_iter += 1
@@ -125,12 +119,8 @@ def training_one_frame(dataset, opt, pipe, load_iteration, testing_iterations, s
             
             # Tracking Densification Stats
             if iteration > opt.densify_from_iter: # default : 130
-            #if iteration > 230: # default : 130    
                 # Keep track of max radii in image-space for pruning
                 gaussians.max_radii2D[visibility_filter] = torch.max(gaussians.max_radii2D[visibility_filter], radii[visibility_filter])
-                # # get view-space gradient : 약 20만개
-                # gaussians.add_densification_stats(viewspace_point_tensor, visibility_filter)
-                
                 viewspace_point_tensor_grad = viewspace_point_tensor.grad
                 # get view-space gradient : 약 20만개
                 gaussians.add_densification_stats(viewspace_point_tensor_grad, visibility_filter)
@@ -248,8 +238,6 @@ def prepare_output_and_logger(args):
 def training_report(tb_writer, iteration, Ll1, Lds, loss, l1_loss, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
     last_test_psnr=0.0
 
-    last_psnr_of = 0.0
-
     if tb_writer:
         tb_writer.add_scalar('train_loss_patches/l1_loss', Ll1.item(), iteration)
         tb_writer.add_scalar('train_loss_patches/ds_loss', Lds.item(), iteration)
@@ -286,10 +274,6 @@ def training_report(tb_writer, iteration, Ll1, Lds, loss, l1_loss, elapsed, test
                             tb_writer.add_image(config['name'] + "_view_{}/ground_truth".format(viewpoint.image_name), gt_image, global_step=iteration)
                     l1_test += l1_loss(image, gt_image).mean().double()
                     psnr_test += psnr(image, gt_image).mean().double()
-
-                    pixel_image, pixel_gt, pixel_mask = extract_valid_motion_pixels(image,gt_image)
-                    psnr_of += psnr(pixel_image[:,pixel_mask],pixel_gt[:,pixel_mask]).mean().double()
-
                     
                 psnr_test /= len(config['cameras'])
                 l1_test /= len(config['cameras'])    
@@ -303,10 +287,6 @@ def training_report(tb_writer, iteration, Ll1, Lds, loss, l1_loss, elapsed, test
                     last_test_image = image
                     last_gt = gt_image
 
-                    last_psnr_of = psnr_of
-                    last_of_image = visualize_optical_flow(image,gt_image)
-                    last_pixel_image = pixel_image
-
         if tb_writer:
             tb_writer.add_histogram("scene/opacity_histogram", scene.gaussians.get_opacity, iteration)
             tb_writer.add_scalar('total_points', scene.gaussians.get_xyz.shape[0], iteration)
@@ -315,9 +295,6 @@ def training_report(tb_writer, iteration, Ll1, Lds, loss, l1_loss, elapsed, test
         return {'last_test_psnr':last_test_psnr.cpu().numpy()
                 , 'last_test_image':last_test_image.cpu()
                 , 'last_points_num':scene.gaussians.get_xyz.shape[0]
-                , 'last_psnr_of' : last_psnr_of.cpu().numpy()
-                , 'last_of_image' : last_of_image.cpu()
-                , 'last_pixel_image' : last_pixel_image.cpu()
                 # , 'last_gt':last_gt.cpu()
                 }
 
@@ -341,17 +318,13 @@ def train_one_frame(lp,op,pp,args, frame_num, output_path):
                 if frame_num % 30 == 0:
                     save_tensor_img(s1_res['last_test_image'],os.path.join(args.output_path,f'f{frame_num}_rendering1'))
                 res_dict[f'stage1/psnr']=s1_res['last_test_psnr']
-                res_dict[f'stage1/psnr_of']=s1_res['last_psnr_of']
                 res_dict[f'stage1/points_num']=s1_res['last_points_num']
             res_dict[f'stage1/time']=s1_time
         if s2_ress !=[]:
             for idx, s2_res in enumerate(s2_ress):
                 if frame_num % 30 == 0:
                     save_tensor_img(s2_res['last_test_image'],os.path.join(args.output_path,f'f{frame_num}_rendering2'))
-                    save_tensor_img(s2_res['last_of_image'],os.path.join(args.output_path,f'f{frame_num}_optical_flow'))
-                    save_tensor_img(s2_res['last_pixel_image'],os.path.join(args.output_path,f'f{frame_num}_pixel'))
                 res_dict[f'stage2/psnr']=s2_res['last_test_psnr']
-                res_dict[f'stage2/psnr_of']=s2_res['last_psnr_of']
                 res_dict[f'stage2/points_num']=s2_res['last_points_num']
             res_dict[f'stage2/time']=s2_time
     return res_dict
@@ -364,9 +337,7 @@ def train_frames(lp, op, pp, args):
         'stage1/time' : 0.0,
         'stage2/time' : 0.0,
         'stage1/points_num' : 0,
-        'stage2/points_num' : 0,
-        'stage1/psnr_of' : 0.0,
-        'stage2/psnr_of' : 0.0
+        'stage2/points_num' : 0
     }
 
     frame_num = 0
@@ -383,42 +354,33 @@ def train_frames(lp, op, pp, args):
         (item for item in sub_paths if pattern.match(item)),
         key=lambda x: int(pattern.match(x).group(1))
     )
-    # frames=frames[args.frame_start:args.frame_end]
-    frames=frames[args.frame_start:600]
     
-    # # opt.iteratinos는 맨 위에
-    # # load ply of stage 1.5
-    # load_iteration = 250
-    # # change saving_iterations for stage 1.5
-    # args.save_iterations = [150,250,350]
-    # # change testing_iterations for stage 1.5
-    # args.test_iterations = [150,250,350]
+    frames=frames[args.frame_start:args.frame_end]
     
     if args.frame_start==1:
         args.load_iteration = args.first_load_iteration # 15000
         
     for frame in frames:
         frame_num += 1
-        if frame_num % 1 == 0 :
-            avg_num += 1
-            start_time = time.time()
-            args.source_path = os.path.join(video_path, frame)
-            args.output_path = os.path.join(output_path, frame)
-            args.model_path = model_path
-            frame_dict = train_one_frame(lp,op,pp,args, frame_num, output_path)
-            
-            time_avg += time.time()-start_time
-            print(f"\nFrame {frame} finished in {time.time()-start_time} seconds.\n\n")
-            
-            sum_dict = {key: sum_dict[key] + frame_dict[key] for key in frame_dict.keys()}
-            for name, value in sum_dict.items():
-                print(f"\n {name} : {value/avg_num:.2f}")
-            
-            model_path = args.output_path
-            args.load_iteration = load_iteration
-            torch.cuda.empty_cache()
-        else:
-            continue
+        avg_num += 1
+        
+        start_time = time.time()
+        args.source_path = os.path.join(video_path, frame)
+        args.output_path = os.path.join(output_path, frame)
+        args.model_path = model_path
+        frame_dict = train_one_frame(lp,op,pp,args, frame_num, output_path)
+        
+        time_avg += time.time()-start_time
+        print(f"\nFrame {frame} finished in {time.time()-start_time} seconds.\n\n")
+        
+        sum_dict = {key: sum_dict[key] + frame_dict[key] for key in frame_dict.keys()}
+        for name, value in sum_dict.items():
+            print(f"\n {name} : {value/avg_num:.2f}")
+        
+        model_path = args.output_path
+        args.load_iteration = load_iteration
+        torch.cuda.empty_cache()
+        
     print(f"\n Average training time is {time_avg/avg_num:.2f} seconds.\n\n")    
         
 
