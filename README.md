@@ -1,33 +1,6 @@
-# 3DGStream
+# A Real time Free-Viewpoint Videos Streaming Model Robust to Fast-Moving Objects 
 
-Official repository for the paper "3DGStream: On-the-fly Training of 3D Gaussians for Efficient Streaming of Photo-Realistic Free-Viewpoint Videos".
-
-> **3DGStream: On-the-fly Training of 3D Gaussians for Efficient Streaming of Photo-Realistic Free-Viewpoint Videos**  
-> [Jiakai Sun](https://sjojok.github.io), Han Jiao, [Guangyuan Li](https://guangyuankk.github.io/), Zhanjie Zhang, Lei Zhao, Wei Xing  
-> *CVPR 2024 __Highlight__*  
-> [Project](https://sjojok.github.io/3dgstream)
-| [Paper](https://openaccess.thecvf.com/content/CVPR2024/papers/Sun_3DGStream_On-the-Fly_Training_of_3D_Gaussians_for_Efficient_Streaming_of_CVPR_2024_paper.pdf)
-| [Suppl.](https://openaccess.thecvf.com/content/CVPR2024/supplemental/Sun_3DGStream_On-the-Fly_Training_CVPR_2024_supplemental.pdf)
-| [Bibtex](##Bibtex)
-| [Viewer](https://github.com/SJoJoK/3DGStreamViewer)
-
-
-
-## Release Roadmap
-
-- [x] Open-source [3DGStream Viewer](https://github.com/SJoJoK/3DGStreamViewer)
-
-    - [x] Free-Viewpoint Video
-      
-- [x] Unorganized code with few instructions (around May 2024)
-
-    - [x] Pre-Release
-      
-- [ ] Refactored code with added comments (after CVPR 2024)
-
-- [ ] 3DGStream v2 (hopefully in 2025)
-
-## Step-by-step Tutorial for 3DGStream (May Ver.)
+## Step-by-step Tutorial 
 
 1. Follow the instructions in [gaussian-splatting](https://github.com/graphdeco-inria/gaussian-splatting) to setup the environment and submodules, after that, you need to install [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn).
 
@@ -246,18 +219,4 @@ Official repository for the paper "3DGStream: On-the-fly Training of 3D Gaussian
 
        Write a script that loads all NTCs and additional_3dgs and renders the test image for every frame. For guidance, you can look at the implementation within [3DGStreamViewer](https://github.com/SJoJoK/3DGStreamViewer)
 
-## Acknowledgments
 
-We acknowledge the foundational work of [gaussian-splatting](https://github.com/graphdeco-inria/gaussian-splatting) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn), which form the basis of the 3DGStream code. Special thanks to [Qiankun Gao](https://github.com/gqk) for his feedback on the pre-release version.
-
-## Bibtex
-```
-@InProceedings{sun20243dgstream,
-    author    = {Sun, Jiakai and Jiao, Han and Li, Guangyuan and Zhang, Zhanjie and Zhao, Lei and Xing, Wei},
-    title     = {3DGStream: On-the-Fly Training of 3D Gaussians for Efficient Streaming of Photo-Realistic Free-Viewpoint Videos},
-    booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-    month     = {June},
-    year      = {2024},
-    pages     = {20675-20685}
-}
-```
